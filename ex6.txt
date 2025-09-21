@@ -1,0 +1,75 @@
+Enable nested virtualization in VirtualBox.
+
+Assign static IPs to VMs (e.g. 192.168.56.101 for VM1, 192.168.56.102 for VM2).
+
+Check network connectivity between the VMs using ping.
+
+Install hypervisor tools:
+
+bash
+sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst
+Add user to required groups:
+
+bash
+sudo usermod -aG libvirt $USER
+sudo usermod -aG kvm $USER
+Verify CPU supports virtualization:
+
+bash
+egrep -o 'vmx|svm' /proc/cpuinfo | uniq
+Start libvirt service:
+
+bash
+sudo systemctl enable --now libvirtd
+Result: Two hypervisors (VM1, VM2) are set up and connected in a cluster.
+
+Part 2: High Availability & Load Balancing
+Steps:
+
+Install and start nginx on the cluster:
+
+bash
+sudo apt install -y nginx
+sudo systemctl start nginx
+Edit /etc/nginx/nginx.conf and define both hypervisors as backend servers:
+
+text
+http {
+    upstream backend_servers {
+        server 192.168.56.101;
+        server 192.168.56.102;
+    }
+    server {
+        listen 80;
+        location / {
+            proxy_pass http://backend_servers;
+        }
+    }
+}
+Restart nginx:
+
+bash
+sudo systemctl restart nginx
+Result: Nginx distributes workload between hosts and ensures failover if one node fails.
+
+Part 3: VM Migration
+Steps:
+
+On Host 1, migrate VM to Host 2 with live migration:
+
+bash
+virsh migrate --live kali-test qemu+ssh://192.168.56.102/system
+On Host 2, check if VM is running:
+
+bash
+virsh list --all
+Result: VM migration was successful, proving clustering setup is functional.
+
+Final Result
+The hypervisor cluster was successfully configured. Key outcomes:
+
+Multiple hypervisors connected as cluster nodes.
+
+High availability and load balancing achieved with nginx.
+
+Live migration of VMs verified using virsh migrate.
